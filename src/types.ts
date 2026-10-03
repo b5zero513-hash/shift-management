@@ -1,5 +1,7 @@
 export type Role = 'admin' | 'staff'
 
+export type ProductPageId = 'demo' | 'dashboard' | 'specs' | 'diagram'
+
 export type ScreenId =
   | 'admin-week'
   | 'admin-slot'

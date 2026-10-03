@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createDemoWeek, createSampleAssignments, formatDate, formatWeekRange, getDateKey, getSlotCoverageKey, sampleAvailability, samplePreferredRoles, sampleSubmittedStaffIds, staffMembers } from './data/demo'
 import { loadDemoState, saveDemoState, type PersistedDemoState } from './data/persistence'
-import type { Assignment, AvailabilityChoice, DaySample, Role, RoleId, ScheduleStatus, ScreenId, ShiftPreference, SlotId, StaffAvailabilityState, StaffMember } from './types'
+import type { Assignment, AvailabilityChoice, DaySample, ProductPageId, Role, RoleId, ScheduleStatus, ScreenId, ShiftPreference, SlotId, StaffAvailabilityState, StaffMember } from './types'
 
 const week = createDemoWeek()
 
@@ -11,12 +11,14 @@ function AppHeader({
   onRoleChange,
   onStaffChange,
   onReset,
+  showDemoControls,
 }: {
   role: Role
   staffId: string
   onRoleChange: (role: Role) => void
   onStaffChange: (staffId: string) => void
   onReset: () => void
+  showDemoControls: boolean
 }) {
   return (
     <header className="app-header" id="top">
@@ -24,7 +26,8 @@ function AppHeader({
         <span className="brand-mark" aria-hidden="true">S</span>
         <span className="brand-copy"><strong>シフトノート</strong><small>サンプルサロン</small></span>
       </a>
-      <div className="header-controls">
+      <div className="product-price"><span>料金</span><strong>未定</strong></div>
+      {showDemoControls && <div className="header-controls">
         <span className="demo-badge"><i aria-hidden="true" />デモ体験</span>
         <div className="role-switch" aria-label="体験する立場">
           <button type="button" className={role === 'admin' ? 'is-active' : ''} aria-pressed={role === 'admin'} onClick={() => onRoleChange('admin')}>管理者</button>
@@ -41,7 +44,7 @@ function AppHeader({
         <button type="button" className="reset-button" onClick={onReset}>
           <span aria-hidden="true">↺</span><span>最初から試す</span>
         </button>
-      </div>
+      </div>}
     </header>
   )
 }
@@ -113,6 +116,17 @@ function getAssignedStaffIds(assignments: Assignment[], day: DaySample, slotId: 
   return assignments.filter((assignment) => assignment.date === date && assignment.slotId === slotId && assignment.roleId === roleId).map((assignment) => assignment.staffId)
 }
 
+function ProductNavigation({ page, onNavigate }: { page: ProductPageId; onNavigate: (page: ProductPageId) => void }) {
+  const pages: Array<{ id: ProductPageId; label: string }> = [
+    { id: 'demo', label: '動くデモ' }, { id: 'dashboard', label: 'ダッシュボード' },
+    { id: 'specs', label: '仕様書' }, { id: 'diagram', label: '図解' },
+  ]
+  return <nav className="product-navigation" aria-label="商品ページ">
+    {pages.map((item) => <button key={item.id} type="button" aria-current={page === item.id ? 'page' : undefined}
+      className={page === item.id ? 'product-tab is-active' : 'product-tab'} onClick={() => onNavigate(item.id)}>{item.label}</button>)}
+  </nav>
+}
+
 function getAssignedStaffNames(assignments: Assignment[], day: DaySample, slotId: string, roleId: RoleId): string[] {
   return getAssignedStaffIds(assignments, day, slotId, roleId)
     .map((id) => staffMembers.find((member) => member.id === id)?.name)
@@ -136,7 +150,7 @@ function getWeekShortageCount(days: DaySample[], assignments: Assignment[], requ
   return days.reduce((count, day) => count + day.slots.reduce((slotCount, slot) => slotCount + getSlotShortageCount(day, slot, assignments, requiredByCoverage), 0), 0)
 }
 
-function AdminWeekScreen({ days, submittedCount, assignments, requiredByCoverage, scheduleStatus, onOpenShortage, onPublish, onResumeEditing, onOpenPublishedSchedule }: {
+function AdminWeekScreen({ days, submittedCount, assignments, requiredByCoverage, scheduleStatus, onOpenShortage, onPublish, onResumeEditing, onOpenPublishedSchedule, onGenerateAssignments }: {
   days: DaySample[]
   submittedCount: number
   assignments: Assignment[]
@@ -146,6 +160,7 @@ function AdminWeekScreen({ days, submittedCount, assignments, requiredByCoverage
   onPublish: () => void
   onResumeEditing: () => void
   onOpenPublishedSchedule: () => void
+  onGenerateAssignments: () => void
 }) {
   const [mobileDayIndex, setMobileDayIndex] = useState(5)
   const mobileDay = days[mobileDayIndex] ?? days[0]
@@ -165,7 +180,7 @@ function AdminWeekScreen({ days, submittedCount, assignments, requiredByCoverage
             <button type="button" className="button button-outline" onClick={onResumeEditing}>編集を再開</button>
             <button type="button" className="button button-outline" onClick={onOpenPublishedSchedule}>公開シフトを見る</button>
           </>
-          : <button type="button" className="button button-primary" disabled={shortageCount > 0} onClick={onPublish}>週シフトを公開 <span aria-hidden="true">→</span></button>}
+          : <div className="week-actions"><button type="button" className="button button-outline" onClick={onGenerateAssignments}>初期配置を生成</button><button type="button" className="button button-primary" disabled={shortageCount > 0} onClick={onPublish}>週シフトを公開 <span aria-hidden="true">→</span></button></div>}
       </div>
       <div className="summary-grid" aria-label="週の状況">
         <SummaryCard label="人員不足" value={String(shortageCount)} suffix="枠" note="あと1人の枠があります" variant="summary-shortage" />
@@ -542,7 +557,65 @@ function StaffConfirmedScreen({ staff, days, assignments, scheduleStatus }: {
   </section>
 }
 
+function DashboardScreen({ days, availabilityByStaff, assignments, requiredByCoverage, scheduleStatus }: {
+  days: DaySample[]
+  availabilityByStaff: Record<string, StaffAvailabilityState>
+  assignments: Assignment[]
+  requiredByCoverage: Record<string, number>
+  scheduleStatus: ScheduleStatus
+}) {
+  const shortageCount = getWeekShortageCount(days, assignments, requiredByCoverage)
+  const submittedCount = Object.values(availabilityByStaff).filter((item) => item.submitted).length
+  return <section className="screen-content" aria-labelledby="dashboard-heading">
+    <div className="page-heading-row"><div><p className="eyebrow">現在のデモ状態</p><h1 id="dashboard-heading">シフト状況</h1>
+      <p className="page-description">以下はこのブラウザーのデモ状態から計算した内容です。操作すると表示も更新されます。</p></div></div>
+    <div className="summary-grid" aria-label="現在の週の状況">
+      <SummaryCard label="人員不足" value={String(shortageCount)} suffix="枠" note={shortageCount ? `あと${shortageCount}枠の人員不足` : '全ての枠が充足しています'} variant="summary-shortage" />
+      <SummaryCard label="希望の回答" value={String(submittedCount)} suffix={` / ${staffMembers.length}人`} note="希望提出済みの人数" />
+      <SummaryCard label="シフトの状態" value={scheduleStatus === 'published' ? '公開中' : '下書き'} note={scheduleStatus === 'published' ? 'スタッフに公開されています' : '公開前のシフトです'} variant="summary-status" />
+    </div>
+    <section className="schedule-panel dashboard-schedule" aria-label="各枠の必要人数と配置人数">
+      <div className="panel-heading"><div><h2>週間の必要人数と配置人数</h2><p>{formatWeekRange(days)}・職種別</p></div></div>
+      <div className="week-grid-scroll"><div className="week-grid">{days.map((day) => <WeekDayColumn key={day.date.toISOString()} day={day} assignments={assignments} requiredByCoverage={requiredByCoverage} canEdit={false} onOpenShortage={() => undefined} />)}</div></div>
+      <div className="mobile-dashboard-list">{days.map((day) => <article className="detail-card" key={day.date.toISOString()}><h2>{day.weekday} {formatDate(day.date)}</h2>
+        {day.slots.map((slot) => <div className="dashboard-slot" key={slot.id}><strong>{slot.label}</strong>{slot.coverage.map((coverage) => {
+          const numbers = getCoverageNumbers(day, slot, coverage, assignments, requiredByCoverage)
+          return <span key={coverage.roleId}>{coverage.roleName}　{numbers.assigned}/{numbers.required}人</span>
+        })}</div>)}</article>)}</div>
+      <p className="panel-footnote">配置人数 / 必要人数。画面確認用のデモデータです。</p>
+    </section>
+    {scheduleStatus === 'published' && <section className="dashboard-published"><h2>公開済みシフト</h2><AdminPublishedScreen days={days} assignments={assignments} onResumeEditing={() => undefined} /></section>}
+  </section>
+}
+
+function SpecsScreen() {
+  return <section className="screen-content info-page" aria-labelledby="specs-heading">
+    <div className="page-heading-row"><div><p className="eyebrow">機能と利用範囲</p><h1 id="specs-heading">仕様書</h1><p className="page-description">現在のデモ実装で確認できる内容と、未実装の範囲をまとめています。</p></div></div>
+    <div className="spec-grid">
+      <article className="detail-card"><h2>役割と操作</h2><ul><li>管理者：希望と必要人数を見てスタッフを配置し、週シフトを公開します。</li><li>スタッフ：本人を選んで希望を提出し、公開後に自分の確定シフトを確認します。</li><li>立場の切替はデモ用です。ログインや権限管理ではありません。</li></ul></article>
+      <article className="detail-card"><h2>希望とシフト枠</h2><ul><li>対象週は7日間、各日に午前・午後の枠があります。</li><li>希望は「勤務可能」「休み希望」から選び、勤務可能な枠は希望職種も選択できます。未選択は未回答です。</li><li>枠ごとに受付・施術の職種別必要人数と配置人数を扱います。</li></ul></article>
+      <article className="detail-card"><h2>配置・公開</h2><ul><li>初期配置を生成すると、サンプル配置に戻せます。不足枠は1枠残ります。</li><li>同じスタッフを同一日時の複数職種へ重複配置できません。対応職種以外にも配置できません。</li><li>全ての必要人数を満たすと公開できます。公開中は編集できず、管理者が編集を再開すると下書きに戻ります。</li><li>希望に反する配置や未回答者の配置時は確認が表示されます。</li></ul></article>
+      <article className="detail-card"><h2>保存と未実装範囲</h2><ul><li>希望、配置、必要人数、公開状態は同じブラウザーの localStorage に保存されます。デモ初期化でサンプル状態へ戻せます。</li><li>サーバー同期、アカウント認証、本番の権限管理、複数店舗、通知、外部カレンダー連携、自動シフト作成は実装していません。</li><li>給与計算、打刻、有給管理、勤務時間集計、CSV出力も対象外です。</li></ul></article>
+    </div>
+  </section>
+}
+
+function DiagramScreen() {
+  const steps = [
+    ['スタッフ', '勤務できる時間帯と希望職種を提出'], ['管理者', '必要人数と希望状況を見て不足を確認'],
+    ['配置', '職種に合うスタッフを枠へ割り当て'], ['公開', '全枠が充足したら週シフトを公開'], ['スタッフ', '公開された自分の勤務を確認'],
+  ]
+  return <section className="screen-content info-page" aria-labelledby="diagram-heading">
+    <div className="page-heading-row"><div><p className="eyebrow">希望から確定まで</p><h1 id="diagram-heading">シフトが決まる流れ</h1><p className="page-description">希望と必要人数をもとに配置を整え、公開内容をスタッフが確認します。</p></div></div>
+    <ol className="flow-diagram">{steps.map(([title, text], index) => <li className="flow-step" key={`${title}-${index}`}>
+      <span className="flow-number">{String(index + 1).padStart(2, '0')}</span><div><span className="flow-owner">{title}</span><strong>{text}</strong></div>{index < steps.length - 1 && <span className="flow-arrow" aria-hidden="true">↓</span>}
+    </li>)}</ol>
+    <p className="panel-footnote">希望提出・配置・公開はデモ上の操作です。データはこのブラウザー内に保存されます。</p>
+  </section>
+}
+
 export default function App() {
+  const [productPage, setProductPage] = useState<ProductPageId>('demo')
   const [role, setRole] = useState<Role>('admin')
   const [screen, setScreen] = useState<ScreenId>('admin-week')
   const [demoState, setDemoState] = useState<PersistedDemoState>(() => loadDemoState(week, () => createInitialPersistentState(week)))
@@ -626,6 +699,12 @@ export default function App() {
     setDemoState(createInitialPersistentState(week))
     setRole('admin')
     setScreen('admin-week')
+    setProductPage('demo')
+  }
+
+  function generateInitialAssignments() {
+    if (scheduleStatus === 'published') return
+    setDemoState((current) => ({ ...current, assignments: createSampleAssignments(week) }))
   }
 
   function publishWeek() {
@@ -669,6 +748,7 @@ export default function App() {
     onPublish={publishWeek}
     onResumeEditing={resumeEditing}
     onOpenPublishedSchedule={openPublishedSchedule}
+    onGenerateAssignments={generateInitialAssignments}
   />
   else if (screen === 'admin-published' && role === 'admin' && scheduleStatus === 'published') activeScreen = <AdminPublishedScreen
     days={week}
@@ -698,9 +778,13 @@ export default function App() {
   />
   else activeScreen = <StaffConfirmedScreen staff={staff} days={week} assignments={assignments} scheduleStatus={scheduleStatus} />
 
-  return <div className="app-frame"><AppHeader role={role} staffId={staffId} onRoleChange={changeRole} onStaffChange={(nextStaffId) => setDemoState((current) => ({ ...current, staffId: nextStaffId }))} onReset={resetDemo} />
-    <main className="main-container"><ScreenNavigation role={role} screen={screen} scheduleStatus={scheduleStatus} onNavigate={setScreen} />
-      <div className="active-screen">{activeScreen}</div>
+  const productContent = productPage === 'demo' ? <><ScreenNavigation role={role} screen={screen} scheduleStatus={scheduleStatus} onNavigate={setScreen} /><div className="active-screen">{activeScreen}</div></>
+    : productPage === 'dashboard' ? <DashboardScreen days={week} availabilityByStaff={availabilityByStaff} assignments={assignments} requiredByCoverage={requiredByCoverage} scheduleStatus={scheduleStatus} />
+      : productPage === 'specs' ? <SpecsScreen /> : <DiagramScreen />
+
+  return <div className="app-frame"><AppHeader role={role} staffId={staffId} onRoleChange={changeRole} onStaffChange={(nextStaffId) => setDemoState((current) => ({ ...current, staffId: nextStaffId }))} onReset={resetDemo} showDemoControls={productPage === 'demo'} />
+    <main className="main-container"><ProductNavigation page={productPage} onNavigate={setProductPage} />
+      {productContent}
       <footer className="app-footer"><span>シフトノート</span><span>画面確認用のデモサンプル</span></footer>
     </main></div>
 }
