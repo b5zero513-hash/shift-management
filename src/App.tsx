@@ -26,8 +26,8 @@ function AppHeader({
         <span className="brand-mark" aria-hidden="true">S</span>
         <span className="brand-copy"><strong>シフトノート</strong><small>サンプルサロン</small></span>
       </a>
-      <div className="product-price" aria-label="シフト管理の基本料金">
-        <span>基本料金</span><strong>80,000円〜（税別）</strong>
+      <div className="product-price" data-product-id="shift-management" data-product-name="シフト管理">
+        <span>基本料金</span><strong>80,000円（税別）</strong>
         <small>基本料金です。機能追加・個別カスタマイズは別途お見積りとなります。</small>
         <div className="price-links">
           <a href="https://apurihp-production-edf3.up.railway.app/?items=shift-management">概算見積りを見る</a>
