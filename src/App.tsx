@@ -26,7 +26,14 @@ function AppHeader({
         <span className="brand-mark" aria-hidden="true">S</span>
         <span className="brand-copy"><strong>シフトノート</strong><small>サンプルサロン</small></span>
       </a>
-      <div className="product-price"><span>料金</span><strong>未定</strong></div>
+      <div className="product-price" aria-label="シフト管理の基本料金">
+        <span>基本料金</span><strong>80,000円〜（税別）</strong>
+        <small>基本料金です。機能追加・個別カスタマイズは別途お見積りとなります。</small>
+        <div className="price-links">
+          <a href="https://apurihp-production-edf3.up.railway.app/?items=shift-management">概算見積りを見る</a>
+          <a href="https://mirailab0924.com/production-contact/">制作・カスタマイズについて相談する</a>
+        </div>
+      </div>
       {showDemoControls && <div className="header-controls">
         <span className="demo-badge"><i aria-hidden="true" />デモ体験</span>
         <div className="role-switch" aria-label="体験する立場">

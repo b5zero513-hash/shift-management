@@ -28,8 +28,11 @@ button:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid
 .brand-copy { display: grid; gap: 1px; }
 .brand-copy strong { font-size: 15px; letter-spacing: .035em; }
 .brand-copy small { color: var(--muted); font-size: 12px; }
-.product-price { display: grid; gap: 2px; margin-right: auto; padding-left: 20px; border-left: 1px solid var(--line); color: var(--muted); font-size: 12px; }
-.product-price strong { color: var(--ink); font-size: 14px; }
+.product-price { display: grid; align-content: center; gap: 2px 8px; margin-right: auto; padding-left: 20px; border-left: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.product-price strong { color: var(--ink); font-size: 18px; }
+.product-price small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.price-links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.price-links a { color: var(--green-dark); font-size: 11px; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .header-controls { display: flex; align-items: center; gap: 13px; }
 .demo-badge { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; color: #475569; border-radius: 99px; background: #f1f5f1; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .demo-badge i, .state-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #d99a54; }
@@ -226,10 +229,9 @@ h1 { margin-bottom: 7px; color: var(--ink); font-size: clamp(22px, 2.5vw, 28px);
 
 @media (max-width: 700px) {
   .app-header { align-items: flex-start; flex-direction: column; gap: 12px; padding: 13px 17px; }
-  .product-price { position: absolute; top: 22px; left: 185px; margin: 0; padding-left: 12px; }
-  .app-header:has(.header-controls) .product-price { top: 18px; }
+  .product-price { position: static; margin: 0; padding-left: 0; border-left: 0; }
   .header-controls { width: 100%; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
-  .app-header:not(:has(.header-controls)) { min-height: 72px; flex-direction: row; align-items: center; }
+  .app-header:not(:has(.header-controls)) { min-height: 72px; flex-direction: column; align-items: flex-start; }
   .demo-badge { order: 0; }
   .role-switch { order: 1; margin-left: auto; }
   .staff-select-label { order: 2; }
